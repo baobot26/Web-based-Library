@@ -140,3 +140,72 @@ def test_book_detail_non_integer_id_is_422(client):
     res = client.get("/api/v1/books/abc")
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+# --- Endpoint 5: GET /api/v1/books/{id}/chapters/{number} ---
+
+
+def test_read_chapter(client, make_user, make_book, make_chapter):
+    book = make_book(make_user(), title="The Little Prince")
+    make_chapter(
+        book,
+        number=3,
+        title="Chapter III",
+        content="The stars are beautiful.",
+    )
+    res = client.get(f"/api/v1/books/{book.id}/chapters/3")
+    assert res.status_code == 200
+    assert res.json() == {
+        "book_id": book.id,
+        "number": 3,
+        "title": "Chapter III",
+        "content": "The stars are beautiful.",
+    }
+
+
+def test_read_chapter_missing_book_is_404(client):
+    res = client.get("/api/v1/books/999999/chapters/1")
+    assert res.status_code == 404
+    assert res.json()["error"] == {
+        "code": "BOOK_NOT_FOUND",
+        "message": "Book 999999 does not exist",
+    }
+
+
+def test_read_chapter_deleted_book_is_404(client, make_user, make_book):
+    book = make_book(make_user(), deleted_at=datetime.now(timezone.utc))
+    res = client.get(f"/api/v1/books/{book.id}/chapters/1")
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "BOOK_NOT_FOUND"
+
+
+def test_read_missing_chapter_is_404(client, make_user, make_book):
+    book = make_book(make_user())
+    res = client.get(f"/api/v1/books/{book.id}/chapters/1")
+    assert res.status_code == 404
+    assert res.json()["error"] == {
+        "code": "CHAPTER_NOT_FOUND",
+        "message": f"Chapter 1 of book {book.id} does not exist",
+    }
+
+
+def test_read_deleted_chapter_is_404(client, make_user, make_book, make_chapter):
+    book = make_book(make_user())
+    make_chapter(book, number=1, deleted_at=datetime.now(timezone.utc))
+    res = client.get(f"/api/v1/books/{book.id}/chapters/1")
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "CHAPTER_NOT_FOUND"
+
+
+def test_read_chapter_number_zero_is_422(client, make_user, make_book):
+    book = make_book(make_user())
+    res = client.get(f"/api/v1/books/{book.id}/chapters/0")
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_read_non_integer_chapter_number_is_422(client, make_user, make_book):
+    book = make_book(make_user())
+    res = client.get(f"/api/v1/books/{book.id}/chapters/abc")
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"

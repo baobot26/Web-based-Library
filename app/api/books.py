@@ -1,9 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.orm import Session
 
-from app.api.schemas import BookDetail, BookListResponse
+from app.api.schemas import BookDetail, BookListResponse, ChapterDetail
 from app.infrastructure.db import get_session
 from app.services import book_service
 
@@ -27,3 +27,13 @@ def list_books(
 def get_book(book_id: int, session: SessionDep) -> dict:
     """Book info with its chapter list. Guests allowed."""
     return book_service.get_book(session, book_id)
+
+
+@router.get("/{book_id}/chapters/{number}", response_model=ChapterDetail)
+def get_chapter(
+    book_id: int,
+    number: Annotated[int, Path(ge=1)],
+    session: SessionDep,
+) -> dict:
+    """Read one live chapter. Guests allowed."""
+    return book_service.get_chapter(session, book_id, number)

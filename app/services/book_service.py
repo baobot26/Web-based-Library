@@ -77,3 +77,35 @@ def get_book(session: Session, book_id: int) -> dict:
         "created_at": book.created_at,
         "chapters": [{"number": number, "title": title} for number, title in chapters],
     }
+
+
+def get_chapter(session: Session, book_id: int, number: int) -> dict:
+    """Return one live chapter after verifying its live book exists."""
+    book_exists = session.execute(
+        select(BookModel.id).where(
+            BookModel.id == book_id,
+            BookModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if book_exists is None:
+        raise NotFoundError("BOOK_NOT_FOUND", f"Book {book_id} does not exist")
+
+    chapter = session.execute(
+        select(ChapterModel).where(
+            ChapterModel.book_id == book_id,
+            ChapterModel.number == number,
+            ChapterModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if chapter is None:
+        raise NotFoundError(
+            "CHAPTER_NOT_FOUND",
+            f"Chapter {number} of book {book_id} does not exist",
+        )
+
+    return {
+        "book_id": chapter.book_id,
+        "number": chapter.number,
+        "title": chapter.title,
+        "content": chapter.content,
+    }

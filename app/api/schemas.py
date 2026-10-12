@@ -42,3 +42,10 @@ class BookDetail(BaseModel):
     uploader_name: str
     created_at: Timestamp
     chapters: list[ChapterRef]
+
+
+class ChapterDetail(BaseModel):
+    book_id: int
+    number: int
+    title: str
+    content: str
