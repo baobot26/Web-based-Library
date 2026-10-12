@@ -27,3 +27,18 @@ class BookListResponse(BaseModel):
     page: int
     size: int
     total: int
+
+
+class ChapterRef(BaseModel):
+    number: int
+    title: str
+
+
+class BookDetail(BaseModel):
+    id: int
+    title: str
+    description: str
+    uploader_id: int
+    uploader_name: str
+    created_at: Timestamp
+    chapters: list[ChapterRef]

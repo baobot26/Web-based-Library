@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.schemas import BookListResponse
+from app.api.schemas import BookDetail, BookListResponse
 from app.infrastructure.db import get_session
 from app.services import book_service
 
@@ -21,3 +21,9 @@ def list_books(
 ) -> dict:
     """Browse/search books. Newest first, soft-deleted hidden, guests allowed."""
     return book_service.list_books(session, q, page, size)
+
+
+@router.get("/{book_id}", response_model=BookDetail)
+def get_book(book_id: int, session: SessionDep) -> dict:
+    """Book info with its chapter list. Guests allowed."""
+    return book_service.get_book(session, book_id)

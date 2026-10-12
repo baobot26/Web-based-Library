@@ -75,3 +75,68 @@ def test_invalid_page_and_size_are_rejected(client):
     assert client.get("/api/v1/books", params={"page": 0}).status_code == 422
     assert client.get("/api/v1/books", params={"size": 0}).status_code == 422
     assert client.get("/api/v1/books", params={"size": 101}).status_code == 422
+
+
+# --- Endpoint 4: GET /api/v1/books/{id} ---
+
+
+def test_book_detail_shape(client, make_user, make_book, make_chapter):
+    user = make_user(name="An")
+    book = make_book(user, title="The Little Prince", description="A pilot meets a boy.", created_at=T0)
+    make_chapter(book, number=1, title="Chapter I")
+    make_chapter(book, number=2, title="Chapter II")
+    res = client.get(f"/api/v1/books/{book.id}")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["id"] == book.id
+    assert data["title"] == "The Little Prince"
+    assert data["description"] == "A pilot meets a boy."
+    assert data["uploader_id"] == user.id
+    assert data["uploader_name"] == "An"
+    assert data["created_at"] == "2026-10-01T09:00:00Z"
+    assert data["chapters"] == [
+        {"number": 1, "title": "Chapter I"},
+        {"number": 2, "title": "Chapter II"},
+    ]
+
+
+def test_book_detail_chapters_sorted_by_number(client, make_user, make_book, make_chapter):
+    book = make_book(make_user())
+    make_chapter(book, number=3, title="Chapter III")
+    make_chapter(book, number=1, title="Chapter I")
+    make_chapter(book, number=2, title="Chapter II")
+    data = client.get(f"/api/v1/books/{book.id}").json()
+    assert [c["number"] for c in data["chapters"]] == [1, 2, 3]
+
+
+def test_book_detail_hides_deleted_chapters(client, make_user, make_book, make_chapter):
+    book = make_book(make_user())
+    make_chapter(book, number=1)
+    make_chapter(book, number=2, deleted_at=datetime.now(timezone.utc))
+    data = client.get(f"/api/v1/books/{book.id}").json()
+    assert [c["number"] for c in data["chapters"]] == [1]
+
+
+def test_book_detail_without_chapters(client, make_user, make_book):
+    book = make_book(make_user())
+    data = client.get(f"/api/v1/books/{book.id}").json()
+    assert data["chapters"] == []
+
+
+def test_book_detail_missing_book_is_404(client):
+    res = client.get("/api/v1/books/999999")
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "BOOK_NOT_FOUND"
+
+
+def test_book_detail_deleted_book_is_404(client, make_user, make_book):
+    book = make_book(make_user(), deleted_at=datetime.now(timezone.utc))
+    res = client.get(f"/api/v1/books/{book.id}")
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "BOOK_NOT_FOUND"
+
+
+def test_book_detail_non_integer_id_is_422(client):
+    res = client.get("/api/v1/books/abc")
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
