@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import BaseModel, PlainSerializer
+from pydantic import BaseModel, EmailStr, Field, PlainSerializer, field_validator
 
 
 def _iso_utc_z(value: datetime) -> str:
@@ -49,3 +49,33 @@ class ChapterDetail(BaseModel):
     number: int
     title: str
     content: str
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    name: str = Field(min_length=1, max_length=200)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode()) > 72:
+            raise ValueError("must be at most 72 bytes")
+        return value
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
