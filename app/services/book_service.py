@@ -1,8 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.domain.errors import NotFoundError
-from app.infrastructure.models import BookModel, ChapterModel, UserModel
+from app.domain.errors import ConflictError, NotFoundError
+from app.infrastructure.models import BookmarkModel, BookModel, ChapterModel, UserModel
 
 
 def list_books(session: Session, q: str | None, page: int, size: int) -> dict:
@@ -108,4 +108,70 @@ def get_chapter(session: Session, book_id: int, number: int) -> dict:
         "number": chapter.number,
         "title": chapter.title,
         "content": chapter.content,
+    }
+
+
+def create_bookmark(
+    session: Session,
+    user_id: int,
+    book_id: int,
+    chapter_number: int,
+) -> dict:
+    """Bookmark a chapter for user."""
+    chapter = session.execute(
+        select(ChapterModel, BookModel)
+        .join(BookModel, ChapterModel.book_id == BookModel.id)
+        .where(
+            BookModel.id == book_id,
+            BookModel.deleted_at.is_(None),
+            ChapterModel.number == chapter_number,
+            ChapterModel.deleted_at.is_(None),
+        )
+    ).one_or_none()
+    if chapter is None:
+        raise NotFoundError(
+            "CHAPTER_NOT_FOUND",
+            f"Chapter {chapter_number} of book {book_id} does not exist",
+        )
+
+    chapter_model, book_model = chapter
+    existing = session.execute(
+        select(BookmarkModel).where(
+            BookmarkModel.user_id == user_id,
+            BookmarkModel.chapter_id == chapter_model.id,
+            BookmarkModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ConflictError(
+            "BOOKMARK_EXISTS",
+            f"Chapter {chapter_number} of book {book_id} is already bookmarked",
+        )
+
+    bookmark = session.execute(
+        select(BookmarkModel)
+        .where(
+            BookmarkModel.user_id == user_id,
+            BookmarkModel.chapter_id == chapter_model.id,
+        )
+        .order_by(BookmarkModel.id.desc())
+    ).scalars().first()
+    if bookmark is None:
+        bookmark = BookmarkModel(
+            user_id=user_id,
+            chapter_id=chapter_model.id,
+        )
+        session.add(bookmark)
+    else:
+        bookmark.deleted_at = None
+
+    session.commit()
+    session.refresh(bookmark)
+    return {
+        "id": bookmark.id,
+        "book_id": book_model.id,
+        "book_title": book_model.title,
+        "chapter_number": chapter_model.number,
+        "chapter_title": chapter_model.title,
+        "created_at": bookmark.created_at,
     }
