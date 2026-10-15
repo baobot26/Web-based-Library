@@ -175,3 +175,43 @@ def create_bookmark(
         "chapter_title": chapter_model.title,
         "created_at": bookmark.created_at,
     }
+
+def get_bookmarks(session: Session, user_id: int, book_id = None) -> list[dict]:
+    """Return all bookmarks/filter by books for a user."""
+    bookmarks = (
+        select(BookmarkModel, ChapterModel, BookModel)
+        .join(ChapterModel, BookmarkModel.chapter_id == ChapterModel.id)
+        .join(BookModel, ChapterModel.book_id == BookModel.id)
+        .where(
+            BookmarkModel.user_id == user_id,
+            BookmarkModel.deleted_at.is_(None),
+            ChapterModel.deleted_at.is_(None),
+            BookModel.deleted_at.is_(None),
+        )
+    )
+    if book_id is not None:
+        existing = session.execute(
+            select(BookModel.id).where(
+                BookModel.id == book_id,
+                BookModel.deleted_at.is_(None),
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            raise NotFoundError(
+                "BOOK_NOT_FOUND",
+                f"Book {book_id} does not exist",
+            )
+        bookmarks = bookmarks.where(BookModel.id == book_id)
+
+    rows = session.execute(bookmarks.order_by(BookmarkModel.created_at.desc())).all()
+    return [
+        {
+            "id": bookmark.id,
+            "book_id": book.id,
+            "book_title": book.title,
+            "chapter_number": chapter.number,
+            "chapter_title": chapter.title,
+            "created_at": bookmark.created_at,
+        }
+        for bookmark, chapter, book in rows
+    ]
