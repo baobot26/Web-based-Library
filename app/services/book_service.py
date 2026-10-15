@@ -166,6 +166,7 @@ def create_bookmark(
         session.add(bookmark)
     else:
         bookmark.deleted_at = None
+        bookmark.created_at = datetime.now(timezone.utc)
 
     session.commit()
     session.refresh(bookmark)
