@@ -50,6 +50,17 @@ class ChapterDetail(BaseModel):
     title: str
     content: str
 
+class CreateBookmarkRequest(BaseModel):
+    book_id: int
+    chapter_number: int
+
+class CreateBookmarkResponse(BaseModel):
+    id: int
+    book_id: int
+    book_title: str
+    chapter_number: int
+    chapter_title: str
+    created_at: Timestamp
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -79,3 +90,4 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+

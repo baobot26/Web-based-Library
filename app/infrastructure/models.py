@@ -54,3 +54,23 @@ class ChapterModel(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+class BookmarkModel(Base):
+    __tablename__ = "bookmarks"
+    __table_args__ = (
+        Index(
+            "uq_bookmarks_user_book",
+            "user_id",
+            "chapter_id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
