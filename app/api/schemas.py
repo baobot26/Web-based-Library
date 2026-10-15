@@ -50,6 +50,10 @@ class ChapterDetail(BaseModel):
     title: str
     content: str
 
+class ChapterCreate(BaseModel):
+    number: int 
+    title: str 
+    content: str 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
