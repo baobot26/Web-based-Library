@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -215,3 +217,20 @@ def get_bookmarks(session: Session, user_id: int, book_id = None) -> list[dict]:
         }
         for bookmark, chapter, book in rows
     ]
+    
+def delete_bookmark(session: Session, user_id: int, bookmark_id: int) -> None:
+    """Delete a bookmark of an user."""
+    bookmark = session.execute(
+        select(BookmarkModel).where(
+            BookmarkModel.id == bookmark_id,
+            BookmarkModel.user_id == user_id,
+            BookmarkModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if bookmark is None:
+        raise NotFoundError(
+            "BOOKMARK_NOT_FOUND",
+            f"Bookmark {bookmark_id} does not exist",
+        )
+    bookmark.deleted_at = datetime.now(timezone.utc)
+    session.commit()

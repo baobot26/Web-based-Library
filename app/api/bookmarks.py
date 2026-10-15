@@ -38,3 +38,12 @@ def get_bookmarks_by_book(
 ) -> list[CreateBookmarkResponse]:
     """Get all bookmarks for a specific book of an user. Logged in required."""
     return book_service.get_bookmarks(session, user_id, book_id)
+
+@router.delete("/{bookmark_id}", status_code=204)
+def delete_bookmark(
+    bookmark_id: int,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> None:
+    """Delete a bookmark of an user. Logged in required."""
+    book_service.delete_bookmark(session, user_id, bookmark_id)
