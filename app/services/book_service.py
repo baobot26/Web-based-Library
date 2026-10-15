@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.domain.errors import NotFoundError
+from app.domain.errors import ConflictError, ForbiddenError, NotFoundError
 from app.infrastructure.models import BookModel, ChapterModel, UserModel
 
 
@@ -102,6 +102,50 @@ def get_chapter(session: Session, book_id: int, number: int) -> dict:
             "CHAPTER_NOT_FOUND",
             f"Chapter {number} of book {book_id} does not exist",
         )
+
+    return {
+        "book_id": chapter.book_id,
+        "number": chapter.number,
+        "title": chapter.title,
+        "content": chapter.content,
+    }
+
+def create_chapter(session: Session, book_id: int, user_id: int, 
+                   number: int, title: str, content: str) -> dict:
+    book = session.execute(
+        select(BookModel).where(
+            BookModel.id == book_id,
+            BookModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if book is None:
+        raise NotFoundError(
+            "BOOK_NOT_FOUND",
+            f"Book {book_id} does not exist",
+        )
+    if book.uploader_id != user_id:
+        raise ForbiddenError(
+            "NOT_BOOK_OWNER",
+            "You are not the uploader of this book",
+        )
+    existing = session.execute(
+        select(ChapterModel).where(
+            ChapterModel.book_id == book_id,
+            ChapterModel.number == number,
+            ChapterModel.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ConflictError(
+            "CHAPTER_EXISTS",
+            f"Chapter {number} already exists in book {book_id}",
+        )
+
+    chapter = ChapterModel(book_id=book_id, number=number, title=title, content=content)
+
+    session.add(chapter)
+    session.commit()
+    session.refresh(chapter)
 
     return {
         "book_id": chapter.book_id,
